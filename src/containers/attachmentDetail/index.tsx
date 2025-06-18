@@ -1,50 +1,45 @@
-import bg from "@/assets/images/bg-back.svg";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BackButton } from "@/shared/components/BackButton";
+// src/containers/attachmentDetail/index.tsx
 import { formatDate } from "@/shared/utils/dateFormatter";
 import {
   getIPFSIMGAddr,
   getIPFSIMGAddrPrivate,
 } from "@/shared/utils/getIPFSAddrs";
-import { getAttachmentStatusName } from "@/shared/utils/sttausHelpers";
-import { viewTXInExplorer } from "@/shared/utils/viewVaultInExplorer";
+import { motion } from "framer-motion";
 import {
-  Calendar,
-  CheckCircle2,
-  ChevronDown,
-  ChevronUp,
-  Download,
-  ExternalLink,
+  ArrowLeft,
+  FileCheck,
   FileText,
-  Link as LinkIcon,
+  Globe,
+  Loader2,
+  Shield,
+  ShoppingCart,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import PurchaseModal from "../attachments/PurchaseModal";
 import { GlobalSelectors } from "../global/selectors";
-import { GitHubExplorer } from "./components/codeBlock";
-import FilePreview from "./components/FilePreview";
-import { ModelDocsViewer } from "./components/modelDocsViewer";
+import LuxuryPDFViewer from "./components/LuxuryPDFViewer";
 import { attachmentDetailSelectors } from "./selectors";
 import { attachmentDetailActions } from "./slice";
 
+const iconMap: Record<string, any> = {
+  "Certificate of Authenticity": Shield,
+  "Appraisal Report": FileCheck,
+  "Origin Documentation": Globe,
+  "Insurance Documentation": FileText,
+};
+
 const AttachmentDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const dispatch = useDispatch();
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+
   const attachment = useSelector(attachmentDetailSelectors.attachment);
   const isLoading = useSelector(attachmentDetailSelectors.isLoading);
-  const contentType = useSelector(attachmentDetailSelectors.contentType);
-  const fileStructure = useSelector(attachmentDetailSelectors.fileStructure);
-  const modelDocumentation = useSelector(
-    attachmentDetailSelectors.modelDocumentation
-  );
   const authData = useSelector(GlobalSelectors.authData);
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [isMobileFilesOpen, setIsMobileFilesOpen] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -53,281 +48,218 @@ const AttachmentDetail = () => {
   }, [dispatch, id, authData]);
 
   useEffect(() => {
-    if (
-      attachment &&
-      attachment.files &&
-      attachment.files.length > 0 &&
-      (!selectedFile || !attachment.files.find((f) => f.cid === selectedFile))
-    ) {
-      setSelectedFile(attachment.files[0].cid ?? "");
+    if (attachment?.files?.length && !selectedFile) {
+      setSelectedFile(attachment.files[0].cid || "");
     }
   }, [attachment, selectedFile]);
 
-  const handleDownloadAll = async () => {
-    if (!attachment?.files?.length) return;
-
-    // Find the zip file
-    const zipFile = attachment.files.find(
-      (file) => file.filename?.match(/\.(zip)$/i) != null
-    );
-
-    if (!zipFile) return;
-
-    const ipfsUrl = attachment.public_vault
-      ? getIPFSIMGAddr(zipFile.cid ?? "")
-      : getIPFSIMGAddrPrivate(zipFile.cid ?? "");
-
-    const response = await fetch(ipfsUrl);
-    const blob = await response.blob();
-
-    // Create a blob with the correct type if available
-    const fileBlob = new Blob([blob], { type: zipFile.mimetype });
-
-    // Create a download link
-    const downloadUrl = window.URL.createObjectURL(fileBlob);
-    const downloadLink = document.createElement("a");
-    downloadLink.href = downloadUrl;
-    downloadLink.download = zipFile.filename || "download.zip";
-
-    // Trigger download
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-
-    // Cleanup
-    document.body.removeChild(downloadLink);
-    window.URL.revokeObjectURL(downloadUrl);
-  };
-
-  const toggleMobileFiles = () => {
-    setIsMobileFilesOpen(!isMobileFilesOpen);
-  };
-
-  const renderModelDocViewer = () => {
-    if (!modelDocumentation) return null;
-
+  if (isLoading) {
     return (
-      <div className="flex flex-col gap-8">
-        <div className="mx-7">
-          <ModelDocsViewer
-            modelDetails={modelDocumentation.modelDetails}
-            textFiles={modelDocumentation.textFiles}
-          />
-        </div>
+      <div className="min-h-screen bg-gradient-to-b from-obsidian-500 via-obsidian-400 to-obsidian-500 flex items-center justify-center">
+        <Loader2 className="w-12 h-12 text-luxury-gold-500 animate-spin" />
       </div>
     );
-  };
+  }
 
-  const renderGitHubExplorer = () => {
+  if (!attachment) {
     return (
-      <div className="p-4 lg:p-6">
-        <GitHubExplorer fileStructure={fileStructure ?? []} />
+      <div className="min-h-screen bg-obsidian-500 flex items-center justify-center">
+        <p className="text-white">Document not found</p>
       </div>
     );
-  };
+  }
 
-  const renderRegularFilePreview = () => {
-    if (!selectedFile) return null;
-
-    return (
-      <div className="h-full w-full bg-gray-900">
-        <FilePreview
-          key={selectedFile}
-          fileUrl={getIPFSIMGAddr(selectedFile)}
-          mimeType={
-            attachment?.files?.find((f) => f.cid === selectedFile)?.mimetype ||
-            ""
-          }
-          fileName={
-            attachment?.files?.find((f) => f.cid === selectedFile)?.filename ||
-            ""
-          }
-          fileSize={
-            attachment?.files?.find((f) => f.cid === selectedFile)?.size
-          }
-        />
-      </div>
-    );
-  };
+  const selectedFileData = attachment.files?.find(
+    (f) => f.cid === selectedFile
+  );
+  const Icon = iconMap[attachment.name || ""] || FileText;
 
   return (
-    <div
-      className="u-page container m-auto u-bg bg-cover bg-center bg-fixed bg-no-repeat"
-      // @ts-ignore
-      style={{ "--bg-image": `url(${bg})` }}
-    >
-      <div className="mb-8">
-        <BackButton />
-      </div>
-      <div className="mb-8">
-        <h2 className="text-3xl text-white font-utopia-regular">
-          {attachment?.name}{" "}
-          {attachment?.stream?.asset_code
-            ? `- ${attachment?.stream?.asset_code?.slice(0, 8)}`
-            : ""}
-        </h2>
-      </div>
-      {isLoading ? (
-        <Skeleton className="h-[600px] w-full bg-gray-400 u-card" />
-      ) : (
-        <div className="u-card bg-gray-950">
-          {/* Header with buttons */}
-          <div className="border-b border-gray-800 p-4 lg:p-6 bg-gray-900">
-            <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
-              <div>
-                <h1 className="text-xl lg:text-2xl font-bold mb-2 text-white">
-                  {attachment?.name}
-                </h1>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {attachment?.status && (
-                    <Badge
-                      variant="secondary"
-                      className="bg-gray-700 text-gray-300"
-                    >
-                      {getAttachmentStatusName(attachment.status)}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              <div className="flex flex-col lg:flex-row gap-2 w-full lg:w-auto">
-                {
-                  <Button
-                    className="w-full lg:w-auto"
-                    onClick={handleDownloadAll}
-                  >
-                    <Download className="w-4 h-4 lg:mr-2" />
-                    <span className="hidden lg:inline">Download All</span>
-                  </Button>
-                }
-                {attachment?.tx_hash && (
-                  <Button
-                    onClick={() => viewTXInExplorer(attachment.tx_hash!)}
-                    variant="outline"
-                    className="w-full lg:w-auto"
-                  >
-                    <ExternalLink className="w-4 h-4 lg:mr-2" />
-                    <span className="hidden lg:inline">View Transaction</span>
-                  </Button>
-                )}
-              </div>
+    <>
+      <div className="min-h-screen bg-gradient-to-b from-obsidian-500 via-obsidian-400 to-obsidian-500">
+        {/* Header */}
+        <div className="bg-obsidian-500/80 backdrop-blur-sm border-b border-luxury-gold-500/10 sticky top-0 z-30">
+          <div className="max-w-7xl mx-auto px-8 py-6">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => navigate(-1)}
+                className="flex items-center gap-2 text-pearl-300 hover:text-luxury-gold-500 transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5" />
+                <span>Back to Documents</span>
+              </button>
+              <motion.button
+                onClick={() => setShowPurchaseModal(true)}
+                className="flex items-center gap-2 px-6 py-2 rounded-lg 
+                         bg-luxury-gold-500 hover:bg-luxury-gold-400 transition-colors 
+                         text-obsidian-500 font-medium"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <ShoppingCart className="w-4 h-4" />
+                Purchase Fraction
+              </motion.button>
             </div>
           </div>
+        </div>
 
-          {/* Mobile files toggle */}
-          {!contentType && (
-            <Button
-              variant="ghost"
-              onClick={toggleMobileFiles}
-              className="flex lg:hidden items-center justify-between w-full p-4 text-white bg-gray-900 border-b border-gray-800"
+        {/* Content */}
+        <div className="max-w-7xl mx-auto px-8 py-12">
+          <div className="grid lg:grid-cols-3 gap-12">
+            {/* Document Info */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="lg:col-span-1"
             >
-              <span className="font-semibold">
-                Files ({attachment?.files?.length || 0})
-              </span>
-              {isMobileFilesOpen ? (
-                <ChevronUp size={20} />
-              ) : (
-                <ChevronDown size={20} />
-              )}
-            </Button>
-          )}
-
-          {/* Content */}
-          <Tabs defaultValue="preview" className="flex-1">
-            <TabsList className="px-4 lg:px-6 border-b border-gray-800 bg-gray-900">
-              <TabsTrigger
-                value="preview"
-                className="text-gray-400 data-[state=active]:text-white data-[state=active]:bg-gray-800"
+              <div
+                className="bg-obsidian-400/30 backdrop-blur-sm rounded-xl p-8 
+                            border border-luxury-gold-500/10 sticky top-32"
               >
-                Preview
-              </TabsTrigger>
-              <TabsTrigger
-                value="details"
-                className="text-gray-400 data-[state=active]:text-white data-[state=active]:bg-gray-800"
-              >
-                Details
-              </TabsTrigger>
-            </TabsList>
+                <Icon className="w-12 h-12 text-luxury-gold-500 mb-4" />
+                <h1 className="text-2xl font-medium text-white mb-2">
+                  {attachment.name}
+                </h1>
+                <p className="text-luxury-gold-500 mb-4">
+                  {attachment.files?.length || 0} Document
+                  {(attachment.files?.length || 0) > 1 ? "s" : ""}
+                </p>
+                <p className="text-pearl-300 mb-6">
+                  {attachment.description || "Official documentation"}
+                </p>
 
-            <TabsContent value="preview" className="flex-1 h-full">
-              {contentType === "model-documentation" && renderModelDocViewer()}
-              {contentType === "code" && renderGitHubExplorer()}
-              {!contentType && renderRegularFilePreview()}
-            </TabsContent>
+                {/* File selector if multiple files */}
+                {attachment.files && attachment.files.length > 1 && (
+                  <div className="mb-6">
+                    <h3 className="text-sm text-pearl-400 mb-2">
+                      Select Document
+                    </h3>
+                    <div className="space-y-2">
+                      {attachment.files.map((file) => (
+                        <button
+                          key={file.cid}
+                          onClick={() => setSelectedFile(file.cid || "")}
+                          className={`w-full text-left p-3 rounded-lg transition-colors ${
+                            selectedFile === file.cid
+                              ? "bg-luxury-gold-500/20 border border-luxury-gold-500"
+                              : "bg-obsidian-300/30 border border-transparent hover:border-luxury-gold-500/30"
+                          }`}
+                        >
+                          <p className="text-white text-sm">{file.filename}</p>
+                          <p className="text-pearl-400 text-xs">
+                            {file.size
+                              ? `${(file.size / 1024 / 1024).toFixed(2)} MB`
+                              : ""}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-            <TabsContent value="details" className="p-4 lg:p-6">
-              <div className="space-y-6">
-                <div>
-                  <h3 className="font-semibold mb-2 text-white">Description</h3>
-                  <p className="text-gray-400">
-                    {attachment?.description || "No description provided"}
-                  </p>
+                <div className="space-y-4">
+                  <h3 className="text-lg text-white font-medium">
+                    Document Details
+                  </h3>
+                  <ul className="space-y-3">
+                    <li className="flex items-start gap-2 text-pearl-300">
+                      <span className="w-1.5 h-1.5 bg-luxury-gold-500 rounded-full mt-2" />
+                      <span className="text-sm">
+                        Created: {formatDate(attachment.created_at || "")}
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-2 text-pearl-300">
+                      <span className="w-1.5 h-1.5 bg-luxury-gold-500 rounded-full mt-2" />
+                      <span className="text-sm">
+                        Status: {attachment.status?.replace(/_/g, " ")}
+                      </span>
+                    </li>
+                    {attachment.tx_hash && (
+                      <li className="flex items-start gap-2 text-pearl-300">
+                        <span className="w-1.5 h-1.5 bg-luxury-gold-500 rounded-full mt-2" />
+                        <span className="text-sm break-all">
+                          TX: {attachment.tx_hash.slice(0, 10)}...
+                        </span>
+                      </li>
+                    )}
+                  </ul>
                 </div>
 
-                <Separator className="bg-gray-800" />
-
-                <div>
-                  <h3 className="font-semibold mb-2 text-white">Details</h3>
-                  <div className="space-y-2">
-                    <div className="flex items-center text-sm text-gray-400">
-                      <Calendar className="w-4 h-4 mr-2" />
-                      <span>
-                        Created on {formatDate(attachment?.created_at || "")}
-                      </span>
-                    </div>
-                    <div className="flex items-center text-sm text-gray-400">
-                      <FileText className="w-4 h-4 mr-2" />
-                      <span>{attachment?.files?.length || 0} files</span>
-                    </div>
-                    {attachment?.status && (
-                      <div className="flex items-center text-sm text-gray-400">
-                        <CheckCircle2 className="w-4 h-4 mr-2" />
-                        <span>
-                          Status: {getAttachmentStatusName(attachment.status)}
-                        </span>
-                      </div>
-                    )}
-                    {attachment?.stream && (
-                      <div className="flex items-center text-sm text-gray-400">
-                        <LinkIcon className="w-4 h-4 mr-2" />
-                        <span className="break-all">
-                          Stream ID: {attachment.stream.id}
-                        </span>
-                      </div>
-                    )}
+                <div className="mt-8 pt-8 border-t border-luxury-gold-500/10">
+                  <p className="text-sm text-pearl-400 mb-4">
+                    This document has been verified and stored immutably on the
+                    blockchain
+                  </p>
+                  <div className="flex items-center gap-2 text-xs text-luxury-gold-500">
+                    <div className="w-2 h-2 bg-luxury-gold-500 rounded-full animate-pulse" />
+                    Blockchain Verified
                   </div>
                 </div>
+              </div>
+            </motion.div>
 
-                {attachment?.tx_hash && (
-                  <>
-                    <Separator className="bg-gray-800" />
-                    <div>
-                      <h3 className="font-semibold mb-2 text-white">
-                        Transaction
-                      </h3>
-                      <div className="space-y-2">
-                        <div className="flex items-center text-sm text-gray-400">
-                          <LinkIcon className="w-4 h-4 mr-2" />
-                          <span className="break-all">
-                            TX Hash: {attachment.tx_hash}
-                          </span>
-                        </div>
-                        <Button
-                          onClick={() => viewTXInExplorer(attachment.tx_hash!)}
-                          variant="outline"
-                          size="sm"
-                        >
-                          <ExternalLink className="w-4 h-4 mr-2" />
-                          View in Explorer
-                        </Button>
-                      </div>
-                    </div>
-                  </>
+            {/* PDF Viewer */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="lg:col-span-2"
+            >
+              <div
+                className="bg-obsidian-400/30 backdrop-blur-sm rounded-xl 
+                            border border-luxury-gold-500/10 overflow-hidden h-[800px]"
+              >
+                {selectedFileData && (
+                  <LuxuryPDFViewer
+                    fileUrl={
+                      attachment.public_vault
+                        ? getIPFSIMGAddr(selectedFileData.cid || "")
+                        : getIPFSIMGAddrPrivate(selectedFileData.cid || "")
+                    }
+                    fileName={selectedFileData.filename || "Document"}
+                    isPrivate={!attachment.public_vault}
+                    attachment={attachment}
+                  />
                 )}
               </div>
-            </TabsContent>
-          </Tabs>
+            </motion.div>
+          </div>
+
+          {/* Bottom CTA */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="mt-16 text-center"
+          >
+            <div className="bg-gradient-to-r from-transparent via-luxury-gold-500/10 to-transparent p-12">
+              <h3 className="text-3xl font-playfair text-white mb-4">
+                Ready to Own a Piece of History?
+              </h3>
+              <p className="text-pearl-300 mb-8 max-w-2xl mx-auto">
+                After reviewing our comprehensive documentation, take the next
+                step towards owning a fraction of this extraordinary pink
+                diamond masterpiece.
+              </p>
+              <motion.button
+                onClick={() => setShowPurchaseModal(true)}
+                className="bg-luxury-gold-500 text-obsidian-500 px-12 py-4 rounded-lg text-lg font-medium 
+                         hover:bg-luxury-gold-400 transition-all duration-300 transform hover:scale-105
+                         shadow-lg hover:shadow-glow"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                Purchase Your Fraction Now
+              </motion.button>
+            </div>
+          </motion.div>
         </div>
-      )}
-    </div>
+      </div>
+
+      <PurchaseModal
+        isOpen={showPurchaseModal}
+        onClose={() => setShowPurchaseModal(false)}
+      />
+    </>
   );
 };
 

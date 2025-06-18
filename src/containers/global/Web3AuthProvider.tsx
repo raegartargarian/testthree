@@ -1,6 +1,5 @@
 // src/containers/global/Web3AuthProvider.tsx
 import JSONFile from "@/json/ledger.json";
-import { whiteListDomain } from "@/shared/providers/templateSDK";
 import { getClientIdForEnv } from "@/shared/utils/envHelper";
 import { AuthAdapter } from "@web3auth/auth-adapter";
 import {
@@ -53,19 +52,19 @@ export const Web3AuthProvider = ({
         setIsLoading(true);
         setError(null);
 
-        const whiteListSignature = await whiteListDomain({
-          nft_id: twinData?.vault.nftId ?? "",
-          ledger: twinData?.vault.ledger ?? "POLYGON_ZKEVM",
-        });
+        // const whiteListSignature = await whiteListDomain({
+        //   nft_id: twinData?.vault.nftId ?? "",
+        //   ledger: twinData?.vault.ledger ?? "POLYGON_ZKEVM",
+        // });
         const origin = window.location.origin;
         // remove any ending / or # from the origin
         const correctedOrigin = origin.replace(/\/$|#$/g, "");
-        const originData = {
-          [correctedOrigin]: whiteListSignature.signature,
-        };
-        if (!originData) {
-          throw new Error("Failed to get origin signature");
-        }
+        // const originData = {
+        //   [correctedOrigin]: whiteListSignature.signature,
+        // };
+        // if (!originData) {
+        //   throw new Error("Failed to get origin signature");
+        // }
         const chainConfig = {
           chainNamespace: CHAIN_NAMESPACES.EIP155,
           chainId:
@@ -102,9 +101,9 @@ export const Web3AuthProvider = ({
         });
         const authAdapter = new AuthAdapter({
           privateKeyProvider,
-          adapterSettings: {
-            originData: originData,
-          },
+          // adapterSettings: {
+          //   originData: originData,
+          // },
         });
 
         adapters.forEach((adapter: IAdapter<unknown>) => {

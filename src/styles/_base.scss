@@ -8,8 +8,8 @@
   }
 
   body {
-    @apply text-gray-900 dark:text-white;
-    @apply bg-light-background dark:bg-dark-background;
+    @apply text-white;
+    @apply bg-black;
     @apply m-0 p-0;
   }
 
@@ -23,12 +23,13 @@
   }
 
   hr {
-    @apply border-t w-full border-gray-300 dark:border-gray-600;
+    @apply border-t w-full border-gray-300;
   }
 
   strong {
     @apply font-semibold #{!important};
   }
+  
   input[type="number"]::-webkit-inner-spin-button,
   input[type="number"]::-webkit-outer-spin-button {
     -webkit-appearance: none;

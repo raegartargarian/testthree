@@ -1,147 +1,164 @@
-import bg from "@/assets/images/bg-back.svg";
-import { Skeleton } from "@/components/ui/skeleton";
-import { BackButton } from "@/shared/components/BackButton";
-import NoActivity from "@/shared/components/EmptyData";
-import { LoadingIndicator } from "@/shared/components/LoadingIndicator";
-import { formatKebabCase } from "@/shared/utils/formatKebab";
-import { useCallback, useEffect, useRef } from "react";
+// src/containers/attachments/index.tsx
+import { appRoutes } from "@/shared/constants/routes";
+import { formatDate } from "@/shared/utils/dateFormatter";
+import { motion } from "framer-motion";
+import { FileCheck, FileText, Globe, Loader2, Shield } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { GlobalSelectors } from "../global/selectors";
-import AttachmentItem from "./components/AttachmentItem";
+import PurchaseModal from "./PurchaseModal";
 import { attachmentsSelectors } from "./selectors";
 import { attachmentsActions } from "./slice";
 
+const iconMap: Record<string, any> = {
+  "Certificate of Authenticity": Shield,
+  "Appraisal Report": FileCheck,
+  "Origin Documentation": Globe,
+  "Insurance Documentation": FileText,
+};
+
 const ProofOfReserveAttachments = () => {
+  const navigate = useNavigate();
   const dispatch = useDispatch();
-  const [searchParams] = useSearchParams();
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
 
-  // Get attachments data from Redux
   const attachments = useSelector(attachmentsSelectors.attachments);
-  const isFirstLoading = useSelector(attachmentsSelectors.isFirstLoading);
-  const isFetching = useSelector(attachmentsSelectors.isFetching);
-  const currentPage = useSelector(attachmentsSelectors.currentPage);
-  const hasMore = useSelector(attachmentsSelectors.hasMore);
-
-  // Refs for infinite scroll
-  const lastAttachmentRef = useRef<HTMLDivElement | null>(null);
-
-  // Get token data
-  const tokenCodes = useSelector(GlobalSelectors.tokens);
-  const tokenParam = searchParams.get("token");
-  const tokenData = tokenCodes?.find((token) => token.name === tokenParam);
+  const isLoading = useSelector(attachmentsSelectors.isFirstLoading);
   const authData = useSelector(GlobalSelectors.authData);
-  // Fetch initial data when token changes
+  const tokenCodes = useSelector(GlobalSelectors.tokens);
+
   useEffect(() => {
-    if (tokenData) {
+    if (tokenCodes && tokenCodes[0]) {
       dispatch(
         attachmentsActions.fetchAttachmentsStart({
           page: 1,
-          token: tokenData,
+          token: tokenCodes[0],
         })
       );
     }
-  }, [dispatch, tokenData, tokenParam, authData]);
+  }, [dispatch, tokenCodes, authData]);
 
-  // Handle fetching next page
-  const fetchNextPage = useCallback(() => {
-    if (hasMore && !isFetching && tokenData) {
-      dispatch(
-        attachmentsActions.fetchAttachmentsStart({
-          page: currentPage + 1,
-          token: tokenData,
-        })
-      );
-    }
-  }, [hasMore, isFetching, dispatch, currentPage, tokenData]);
-
-  // Setup intersection observer for infinite scroll
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore) {
-          fetchNextPage();
-        }
-      },
-      {
-        root: null,
-        rootMargin: "0px",
-        threshold: 1.0,
-      }
-    );
-
-    if (lastAttachmentRef.current) {
-      observer.observe(lastAttachmentRef.current);
-    }
-
-    return () => {
-      if (lastAttachmentRef.current) {
-        observer.unobserve(lastAttachmentRef.current);
-      }
-    };
-  }, [lastAttachmentRef, fetchNextPage, hasMore]);
-
-  // Show empty state if no attachments
-  if (!isFirstLoading && attachments.length === 0) {
-    return (
-      <div className="w-full container mx-auto">
-        <BackButton />
-        <div className="flex justify-center items-center u-card w-[600px] h-[500px] mt-9 mx-auto">
-          <NoActivity
-            title="No Attachments"
-            description="No attachments found"
-          />
-        </div>
-      </div>
-    );
-  }
+  const handleDocumentClick = (id: string) => {
+    navigate(`${appRoutes.attachmentsDetail.name}${id}`);
+  };
 
   return (
-    <div
-      className="u-page u-bg bg-cover bg-center bg-fixed bg-no-repeat"
-      // @ts-ignore
-      style={{ "--bg-image": `url(${bg})` }}
-    >
-      <div className="container m-auto">
-        <div className="w-full mt-10 mb-8 flex flex-col items-center">
-          <h1 className="text-white font-extralight text-4xl">
-            The List of {formatKebabCase(tokenData?.name ?? "")} Attachments
-          </h1>
-          <p className="text-gray-400 mt-2 font-utopia-regular">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-          </p>
-        </div>
-        <div className="w-full mt-5">
-          {isFirstLoading ? (
-            Array.from({ length: 5 }).map((_, index) => (
-              <Skeleton
-                className="h-[120px] mb-[10px] w-full bg-gray-950 rounded-xl"
-                key={index}
-              />
-            ))
+    <>
+      <div className="min-h-screen bg-gradient-to-b from-obsidian-500 via-obsidian-400 to-obsidian-500 py-16 px-8">
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center mb-16"
+          >
+            <h1 className="luxury-heading text-luxury-gold-500 text-xl mb-4">
+              Documentation & Verification
+            </h1>
+            <h2 className="font-playfair text-5xl text-white mb-6">
+              Complete Transparency
+            </h2>
+            <p className="text-pearl-200 text-lg max-w-2xl mx-auto">
+              Every document has been verified and stored immutably on the
+              blockchain, ensuring complete transparency and authenticity for
+              our investors.
+            </p>
+          </motion.div>
+
+          {/* Documents Grid */}
+          {isLoading ? (
+            <div className="flex justify-center items-center h-64">
+              <Loader2 className="w-8 h-8 text-luxury-gold-500 animate-spin" />
+            </div>
           ) : (
-            <>
-              {attachments.map((attachment, index) => (
-                <div
-                  key={attachment.id}
-                  className="w-full u-card mb-6"
-                  ref={
-                    index === attachments.length - 1 ? lastAttachmentRef : null
-                  }
-                >
-                  <AttachmentItem attachment={attachment} />
-                </div>
-              ))}
-              {isFetching && (
-                <div className="w-full flex items-center justify-center">
-                  <LoadingIndicator />
-                </div>
-              )}
-            </>
+            <div className="grid md:grid-cols-2 gap-8 mb-16">
+              {attachments.map((attachment, index) => {
+                const Icon = iconMap[attachment.name || ""] || FileText;
+                return (
+                  <motion.div
+                    key={attachment.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    onClick={() => handleDocumentClick(attachment.id || "")}
+                    className="group cursor-pointer"
+                  >
+                    <div
+                      className="bg-obsidian-400/30 backdrop-blur-sm rounded-xl p-8 
+                                  border border-luxury-gold-500/10 hover:border-luxury-gold-500/30 
+                                  transition-all duration-300 hover:transform hover:-translate-y-1"
+                    >
+                      <div className="flex items-start gap-6">
+                        <div className="p-4 bg-luxury-gold-500/10 rounded-lg group-hover:bg-luxury-gold-500/20 transition-colors">
+                          <Icon className="w-8 h-8 text-luxury-gold-500" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-xl font-medium text-white mb-1">
+                            {attachment.name}
+                          </h3>
+                          <p className="text-luxury-gold-500 text-sm mb-3">
+                            {attachment.files?.length || 0} file(s)
+                          </p>
+                          <p className="text-pearl-300 text-sm mb-4">
+                            {attachment.description || "Official documentation"}
+                          </p>
+                          <div className="flex items-center justify-between text-xs text-pearl-400">
+                            <span>
+                              {formatDate(attachment.created_at || "")}
+                            </span>
+                            <span className="text-luxury-gold-500 group-hover:text-luxury-gold-400 transition-colors">
+                              View Document →
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
           )}
+
+          {/* Purchase Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="text-center"
+          >
+            <div
+              className="bg-gradient-to-r from-luxury-gold-500/10 via-luxury-gold-500/5 to-luxury-gold-500/10 
+                          rounded-2xl p-12 border border-luxury-gold-500/20"
+            >
+              <h3 className="font-playfair text-3xl text-white mb-4">
+                Ready to Invest?
+              </h3>
+              <p className="text-pearl-200 mb-8 max-w-lg mx-auto">
+                Join an exclusive group of collectors owning a piece of this
+                magnificent creation.
+              </p>
+              <motion.button
+                onClick={() => setShowPurchaseModal(true)}
+                className="bg-luxury-gold-500 text-obsidian-500 px-12 py-4 rounded-lg text-lg font-medium 
+                         hover:bg-luxury-gold-400 transition-all duration-300 transform hover:scale-105
+                         shadow-lg hover:shadow-glow"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                Purchase Fraction
+              </motion.button>
+            </div>
+          </motion.div>
         </div>
       </div>
-    </div>
+
+      {/* Purchase Modal */}
+      <PurchaseModal
+        isOpen={showPurchaseModal}
+        onClose={() => setShowPurchaseModal(false)}
+      />
+    </>
   );
 };
 
