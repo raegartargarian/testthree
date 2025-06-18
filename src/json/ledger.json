@@ -1,0 +1,23 @@
+{
+  "vault": {
+    "nftId": "91217695500314312550778131381798179094647377695157178772432492082038315138123",
+    "ledger": "POLYGON_ZKEVM",
+    "streams": [
+      {
+        "trait_type": "Data Stream",
+        "description": "The stream mapped to the proof-of field",
+        "value": "FLDGR_bnePHi"
+      },
+      {
+        "trait_type": "Data Stream",
+        "description": "The stream mapped to the proof-of-reserve field",
+        "value": "FLDGR_bnePHi"
+      }
+    ]
+  },
+  "data": {
+    "image": "bafkreigrutwrk45xhvguy5a5h6mdqprseu7bbpltfnaiz5tyvsfucpn3b4",
+    "nft_name": "Demo Vault 2"
+  },
+  "env": "DEVELOPMENT"
+}
